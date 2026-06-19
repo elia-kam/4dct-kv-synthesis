@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CT 4DCT kV Generator | Job {{ job_id }}</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="shell narrow">
+    <section class="hero small">
+      <div class="hero-copy">
+        <p class="eyebrow">Job {{ job_id }}</p>
+        <h1 id="status-title">{{ status.status }}</h1>
+        <div class="overall">
+          <div class="progress-track">
+            <div id="overall-fill" class="progress-fill" style="width: {{ status.progress or 0 }}%"></div>
+          </div>
+          <span id="overall-text">{{ status.progress or 0 }}%</span>
+        </div>
+      </div>
+      <a class="secondary" href="/">New job</a>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <span class="step-index">RUN</span>
+        <h2>Stage progress</h2>
+      </div>
+      <div id="stage-list" class="stage-list"></div>
+      <p id="error" class="error">{% if status.error %}{{ status.error }}{% endif %}</p>
+      <a id="download" class="download {% if status.status != 'done' %}hidden{% endif %}" href="/jobs/{{ job_id }}/download">Download results</a>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <span class="step-index">VIEW</span>
+        <h2>Live previews</h2>
+      </div>
+      <div id="preview-grid" class="preview-grid"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <span class="step-index">LOG</span>
+        <h2>Execution log</h2>
+      </div>
+      <ol id="logs" class="logs"></ol>
+    </section>
+  </main>
+
+  <script>
+    const jobId = "{{ job_id }}";
+    const stageOrder = ["input", "fourdct", "deepdrr", "package"];
+
+    function node(tag, className, text) {
+      const el = document.createElement(tag);
+      if (className) el.className = className;
+      if (text !== undefined) el.textContent = text;
+      return el;
+    }
+
+    function renderStages(stages) {
+      const list = document.getElementById("stage-list");
+      list.innerHTML = "";
+      for (const key of stageOrder) {
+        const item = stages?.[key];
+        if (!item) continue;
+        const row = node("article", `stage ${item.status || "queued"}`);
+        const top = node("div", "stage-top");
+        top.append(node("strong", null, item.label || key));
+        top.append(node("span", "badge", item.status || "queued"));
+        const track = node("div", "progress-track");
+        const fill = node("div", "progress-fill");
+        fill.style.width = `${item.progress || 0}%`;
+        track.append(fill);
+        const pct = node("span", "stage-pct", `${item.progress || 0}%`);
+        row.append(top, track, pct);
+        list.append(row);
+      }
+    }
+
+    function imageCard(title, src, kind = "image") {
+      const card = node("article", "preview-card");
+      card.append(node("h3", null, title));
+      const img = document.createElement("img");
+      img.src = src;
+      img.dataset.src = src;
+      img.alt = title;
+      img.loading = "lazy";
+      card.append(img);
+      if (kind === "gif") card.classList.add("gif-card");
+      return card;
+    }
+
+    function renderPreviews(stages) {
+      const grid = document.getElementById("preview-grid");
+      const nextKeys = new Set();
+
+      function appendOrKeep(key, title, src, kind = "image") {
+        nextKeys.add(key);
+        const existing = Array.from(grid.querySelectorAll("[data-preview-key]"))
+          .find((card) => card.dataset.previewKey === key);
+        if (existing) {
+          const img = existing.querySelector("img");
+          if (img && img.dataset.src !== src) {
+            img.src = src;
+            img.dataset.src = src;
+          }
+          return;
+        }
+        const card = imageCard(title, src, kind);
+        card.dataset.previewKey = key;
+        grid.append(card);
+      }
+
+      const input = stages?.input?.artifacts || {};
+      if (input.axial) appendOrKeep("input-axial", "Input CT - axial", input.axial);
+      if (input.coronal) appendOrKeep("input-coronal", "Input CT - coronal", input.coronal);
+      if (input.sagittal) appendOrKeep("input-sagittal", "Input CT - sagittal", input.sagittal);
+
+      const fourdct = stages?.fourdct?.artifacts || {};
+      if (fourdct.gif) appendOrKeep("fourdct-gif", "4DCT breathing cycle", fourdct.gif, "gif");
+
+      const deepdrr = stages?.deepdrr?.artifacts || {};
+      for (const item of deepdrr.gifs || []) {
+        appendOrKeep(`deepdrr-${item.label}`, `DeepDRR - ${item.label}`, item.url, "gif");
+      }
+
+      for (const card of Array.from(grid.querySelectorAll("[data-preview-key]"))) {
+        if (!nextKeys.has(card.dataset.previewKey)) card.remove();
+      }
+
+      if (!grid.children.length) {
+        const empty = node("p", "empty", "Previews will appear here as soon as each stage writes its first output.");
+        empty.dataset.previewKey = "empty";
+        grid.append(empty);
+      } else {
+        const empty = grid.querySelector('[data-preview-key="empty"]');
+        if (empty) empty.remove();
+      }
+    }
+
+    function renderLogs(logs) {
+      const root = document.getElementById("logs");
+      root.innerHTML = "";
+      for (const entry of logs || []) {
+        const li = node("li");
+        li.append(node("time", null, entry.time));
+        li.append(node("span", null, entry.message));
+        root.append(li);
+      }
+    }
+
+    async function refresh() {
+      const res = await fetch(`/api/jobs/${jobId}`);
+      const data = await res.json();
+      document.getElementById("status-title").textContent = data.status;
+      document.getElementById("overall-fill").style.width = `${data.progress || 0}%`;
+      document.getElementById("overall-text").textContent = `${data.progress || 0}%`;
+      document.getElementById("error").textContent = data.error || "";
+      document.getElementById("download").classList.toggle("hidden", data.status !== "done");
+      renderStages(data.stages || {});
+      renderPreviews(data.stages || {});
+      renderLogs(data.logs || []);
+      if (!["done", "failed", "missing"].includes(data.status)) {
+        setTimeout(refresh, 2500);
+      }
+    }
+    refresh();
+  </script>
+</body>
+</html>

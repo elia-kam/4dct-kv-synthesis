@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Respiratory 4DCT + kV Generator</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">AI radiotherapy imaging</p>
+        <h1>Respiratory 4DCT + kV synthesis</h1>
+        <p class="lede">Upload a 3D CT, tune Dynagan and DeepDRR, and monitor every generated preview directly in the browser.</p>
+      </div>
+      <div class="runtime-panel">
+        <div>
+          <span>Dynagan</span>
+          <strong>{{ settings.dynagan_dir }}</strong>
+        </div>
+        <div>
+          <span>DeepDRR</span>
+          <strong>{{ settings.deepdrr_mode }}{% if settings.deepdrr_sif %} | {{ settings.deepdrr_sif }}{% endif %}</strong>
+        </div>
+      </div>
+    </section>
+
+    <form class="tool" action="/jobs" method="post" enctype="multipart/form-data">
+      <section class="panel">
+        <div class="panel-head">
+          <span class="step-index">01</span>
+          <h2>Inputs</h2>
+        </div>
+        <div class="grid two">
+          <label>
+            Patient ID
+            <input name="patient_id" value="patient_001" required>
+          </label>
+          <label class="file-field">
+            <span>3D CT NIfTI</span>
+            <span class="file-control">
+              <input name="ct_file" type="file" accept=".nii,.gz,.nrrd,.mha,.mhd" required>
+              <span class="file-button">Browse file</span>
+              <span class="file-name">No file selected</span>
+            </span>
+          </label>
+          <label class="file-field">
+            <span>Optional tumor mask</span>
+            <span class="file-control">
+              <input name="mask_file" type="file" accept=".nii,.gz,.nrrd,.mha,.mhd">
+              <span class="file-button">Browse file</span>
+              <span class="file-name">No file selected</span>
+            </span>
+          </label>
+          <label class="switch">
+            <input name="include_annotations" type="checkbox" checked>
+            <span>Export annotations</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <span class="step-index">02</span>
+          <h2>Dynagan 4DCT</h2>
+        </div>
+        <div class="grid five">
+          <label class="switch">
+            <input name="run_4dct" type="checkbox" checked>
+            <span>Run 4DCT</span>
+          </label>
+          <label>
+            Total phases
+            <input name="phase_count" type="number" min="2" max="30" value="10">
+          </label>
+          <label>
+            Alpha min
+            <input name="alpha_min" type="number" step="0.1" value="0.0">
+          </label>
+          <label>
+            Alpha max
+            <input name="alpha_max" type="number" step="0.1" value="2.0">
+          </label>
+          <label>
+            Dynagan GPU IDs
+            <input name="gpu_id" value="0" placeholder="0 or 0,1; -1 for CPU">
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <span class="step-index">03</span>
+          <h2>DeepDRR kV</h2>
+        </div>
+        <div class="grid four">
+          <label class="switch">
+            <input name="run_deepdrr" type="checkbox" checked>
+            <span>Run kV DRR</span>
+          </label>
+          <label>
+            Detector width
+            <input name="sensor_width" type="number" min="128" max="4096" value="1024">
+          </label>
+          <label>
+            Detector height
+            <input name="sensor_height" type="number" min="128" max="4096" value="1024">
+          </label>
+          <label>
+            Preview size
+            <input name="preview_size" type="number" min="128" max="2048" value="512">
+          </label>
+          <label>
+            Pixel size
+            <input name="pixel_size" type="number" step="0.1" min="0.1" value="1.0">
+          </label>
+          <label>
+            Source-detector
+            <input name="source_to_detector_distance" type="number" step="1" value="1020">
+          </label>
+          <label>
+            Source-isocenter
+            <input name="source_to_isocenter_vertical_distance" type="number" step="1" value="510">
+          </label>
+        </div>
+
+        <div class="views">
+          {% for name, view in views.items() %}
+          <label class="view">
+            <input name="view_names" type="checkbox" value="{{ name }}" {% if name in ["FACE_AP", "KV_LEFT_45", "KV_RIGHT_45"] %}checked{% endif %}>
+            <span>
+              <strong>{{ name }}</strong>
+              <small>α {{ view.alpha }} / β {{ view.beta }} / γ {{ view.gamma }}</small>
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+
+        <label>
+          Custom views JSON
+          <textarea name="custom_views_json" rows="4" placeholder='[{"name":"KV_30","description":"30 degree oblique","alpha":30,"beta":0,"gamma":0}]'></textarea>
+        </label>
+      </section>
+
+      <div class="actions">
+        <button type="submit"><span>Launch pipeline</span></button>
+      </div>
+    </form>
+  </main>
+  <script>
+    document.querySelectorAll(".file-field input[type='file']").forEach((input) => {
+      const field = input.closest(".file-field");
+      const fileName = field.querySelector(".file-name");
+      input.addEventListener("change", () => {
+        fileName.textContent = input.files.length ? input.files[0].name : "No file selected";
+      });
+    });
+  </script>
+</body>
+</html>
