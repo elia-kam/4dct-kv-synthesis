@@ -1,0 +1,7 @@
+--extra-index-url https://download.pytorch.org/whl/cu118
+cuda-python==11.8.7
+numpy==1.26.4
+numba==0.60.0
+pyparsing==3.1.4
+torch==2.1.2+cu118
+torchvision==0.16.2+cu118
