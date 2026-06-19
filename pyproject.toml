@@ -1,0 +1,39 @@
+[project]
+name = "ct4d-kv-web"
+version = "0.1.0"
+description = "Web app for CT to respiratory 4DCT and kV DeepDRR generation."
+requires-python = ">=3.9"
+dependencies = [
+  "fastapi>=0.111",
+  "uvicorn[standard]>=0.30",
+  "python-multipart>=0.0.9",
+  "jinja2>=3.1",
+  "nibabel>=5.2",
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "pydicom>=2.4",
+  "Pillow>=10.0",
+  "imageio>=2.34",
+  "SimpleITK>=2.3",
+]
+
+[project.optional-dependencies]
+deepdrr = [
+  "deepdrr @ git+https://github.com/arcadelab/deepdrr.git",
+  "pycuda",
+]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.5",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["data*", "jobs*", "docs*", "scripts*"]
+
+[tool.setuptools.package-data]
+app = ["templates/*.html", "static/*"]
