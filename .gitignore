@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+/data/
+/jobs/
+*.nii
+*.nii.gz
+*.mha
+*.mhd
+*.nrrd
+*.sif
+results.zip
