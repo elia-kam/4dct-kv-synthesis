@@ -1,0 +1,31 @@
+services:
+  ct4d-kv-web:
+    build:
+      context: .
+      args:
+        INSTALL_DEEPDRR: "${INSTALL_DEEPDRR:-true}"
+        INSTALL_DYNAGAN: "${INSTALL_DYNAGAN:-true}"
+    image: ct4d-kv-web:latest
+    ports:
+      - "8080:8080"
+    runtime: nvidia
+    environment:
+      APP_DATA_DIR: /data
+      DYNAGAN_DIR: /opt/Dynagan
+      DYNAGAN_PYTHON: /opt/dynagan-venv/bin/python
+      DYNAGAN_THREADS: "${DYNAGAN_THREADS:-8}"
+      DEEPDRR_MODE: python
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
+    volumes:
+      - ct4d_kv_jobs:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  ct4d_kv_jobs:
